@@ -1,71 +1,198 @@
-"""Bot entry point: three functions, wrapped so that they can never raise.
+from __future__ import annotations
 
-Paste the bodies between the starter repo's ``YOUR CODE HERE`` markers (or import
-from here) and keep the ``bot/`` package plus ``evaluator.py`` next to it.
 """
-import time
+agent.py - YOUR poker bot. This one file is a complete web server.
 
-from bot import profile
-from bot.brain import _name, decide, pick
-from bot.params import BASE
+Run it:
+    python agent.py                  # listens on port 5008
+    PORT=5010 python agent.py        # or pick a port
+
+Play a match against a baseline (three windows):
+    python agent.py                                 # your bot on port 5008
+    python baseline-bots/baseline_random.py         # opponent on port 5009
+    python judge_engine.py                          # judge: both halves (uses those two ports)
+
+Check that the tournament can run it:
+    python -m pytest -q              # tests in test_agent.py
+    ./tools/check_build.sh           # builds and smoke-tests it like the tournament
+
+TODO:
+    1. Assign your agent a unique PARTICIPANT and AGENT_NAME below.
+    2. Implement the three functions between "YOUR CODE HERE" and "END OF YOUR CODE".
+
+Everything under "SERVER PLUMBING" talks to the judge. You normally never
+need to change it, and if you break it the judge can't talk to your bot.
+"""
+
+import os
+import json
+import traceback
+
+import uvicorn
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+
+from evaluator import (
+    card_rank, card_suit, cards_to_str, omaha_score, warmup,
+    NUM_CARDS, ACE, FLUSH, STRAIGHT, THREE_OF_A_KIND,
+    FULL_HOUSE, FOUR_OF_A_KIND, STRAIGHT_FLUSH, TWO_PAIR, ONE_PAIR,
+    HIGH_CARD, category_of,
+)
+from game import Action, AgentConfig, HandResult, Observation, Street
+
+# Build omaha_score's lookup table now, while the server starts, instead of
+# during your first decision (where it would eat into your time bank).
+# Do any other slow setup (loading a model, ...) here too: the server must
+# answer within 15 seconds of starting.
+warmup()
+
+# rename as your team/bot's name
+PARTICIPANT = "Team Mustangs"
+AGENT_NAME = "Sixplus"
 
 
-def _fallback(obs):
+# ===== YOUR CODE HERE =====
+
+from bot import core as _core
+
+
+def new_half(config: AgentConfig, memory: dict) -> None:
+    _core.new_half(memory)
+
+
+def choose_action(obs: Observation, memory: dict) -> Action:
+    return _core.choose_action(obs, memory)
+
+
+def on_hand_end(result: HandResult, memory: dict) -> None:
+    _core.on_hand_end(result, memory)
+
+
+# ===== END OF YOUR CODE =====
+
+
+# ===== SERVER PLUMBING (you normally don't need to edit below) =====
+# The judge calls these routes:
+#   GET  /           -> who you are (also used as the health check)
+#   POST /new-half   -> start a fresh half: memory is wiped
+#   POST /act        -> the judge sends any finished hands plus an Observation;
+#                       on_hand_end() runs for each hand, then you answer an action
+#   POST /hand-end   -> the judge sends the last finished hands of a half
+#
+# Why "async def"? The routes run on one thread and call your functions
+# directly, so your functions never run twice at once. Your own functions
+# stay normal "def" (don't make them async).
+#
+# Keep your per-half state in `memory`. In the tournament every half runs in
+# a fresh server process, so everything starts over. When you test locally,
+# though, one process can play both halves and only `memory` is wiped, NOT
+# other global variables. Using `memory` makes your bot behave the same way
+# in both places.
+
+app = FastAPI()
+MEMORY: dict = {}                                   # your memory for this half
+STATUS = {"started": False}                         # has /new-half been called?
+TOKEN = os.environ.get("AGENT_TOKEN") or None       # set by the tournament
+
+
+async def _read_request(request: Request, path: str) -> tuple[dict, JSONResponse | None]:
+    """Check the token (and that the half has started) BEFORE reading the body.
+
+    Checking first means a request without the right token costs your bot
+    almost nothing, so nobody else can slow it down by sending junk.
+    Returns (body, None) when the request is fine, or ({}, error response).
+    """
+    if TOKEN and request.headers.get("x-agent-token") != TOKEN:
+        return {}, JSONResponse({"error": "bad or missing X-Agent-Token"}, status_code=401)
+    if not STATUS["started"] and path != "/new-half":
+        return {}, JSONResponse({"error": "call /new-half first"}, status_code=409)
     try:
-        legal = list(obs.legal_actions)
-        for want in ("CHECK_CALL", "FOLD"):
-            for a in legal:
-                if _name(a) == want:
-                    return a
-        return legal[0]
-    except Exception:
-        return 1  # CHECK_CALL is always legal
+        body = await request.json()
+    except ValueError:
+        body = None
+    if not isinstance(body, dict):
+        return {}, JSONResponse({"error": "the request body must be a JSON object"}, status_code=400)
+    return body, None
 
 
-class Agent:
-    def __init__(self, params=None):
-        self.P = dict(BASE)
-        self.P.update(params or {})
+def _error_info(exc: Exception) -> dict:
+    """Describe an exception from your code (call this inside `except`)."""
+    return {"error": f"{type(exc).__name__}: {exc}", "traceback": traceback.format_exc()}
 
-    def new_half(self, memory):
+
+def _crash(exc: Exception, hand_end_errors: list | None = None) -> JSONResponse:
+    """Report an exception from your code to the judge (with traceback)."""
+    return JSONResponse({**_error_info(exc), "hand_end_errors": hand_end_errors or []},
+                        status_code=500)
+
+
+def _deliver_results(raw_results) -> list:
+    """Call on_hand_end() for each finished hand the judge sent.
+    Returns a list of error reports (one per hand that crashed)."""
+    errors = []
+    for raw in raw_results or []:
         try:
-            memory.clear()
-            memory.update(t=0.0, hands=0)
-        except Exception:
-            pass
-
-    def choose_action(self, obs, memory):
-        t0 = time.perf_counter()
-        try:
-            prof = self.P["use_profile"]
-            if prof:
-                profile.observe(obs, memory)
-            if prof and profile.is_timed_out(memory, self.P):
-                a = pick(obs, ["RAISE_HALF", "RAISE_POT", "CHECK_CALL"])
-            else:
-                a = decide(obs, memory, profile.current(memory, self.P) if prof else self.P)
-            if a is None or a not in obs.legal_actions:
-                a = _fallback(obs)
-            if prof:
-                profile.after_action(obs, memory, a)
-        except Exception:
-            a = _fallback(obs)
-        try:
-            memory["t"] = memory.get("t", 0.0) + time.perf_counter() - t0
-        except Exception:
-            pass
-        return a
-
-    def on_hand_end(self, result, memory):
-        try:
-            memory["hands"] = memory.get("hands", 0) + 1
-            if self.P["use_profile"]:
-                profile.on_hand_end(result, memory, self.P)
-        except Exception:
-            pass
+            on_hand_end(HandResult.from_dict(raw), MEMORY)
+        except Exception as exc:
+            errors.append(_error_info(exc))
+    return errors
 
 
-_default = Agent()
-new_half = _default.new_half
-choose_action = _default.choose_action
-on_hand_end = _default.on_hand_end
+@app.get("/")
+async def info():
+    """Health check: tells the judge who this bot is."""
+    return {"participant": PARTICIPANT, "agent_name": AGENT_NAME}
+
+
+@app.post("/new-half")
+async def route_new_half(request: Request):
+    """Wipe memory and call your new_half(). The body is {"config": {...}}."""
+    body, refused = await _read_request(request, "/new-half")
+    if refused:
+        return refused
+    MEMORY.clear()
+    STATUS["started"] = True
+    try:
+        new_half(AgentConfig.from_dict(body.get("config", {})), MEMORY)
+    except Exception as exc:
+        return _crash(exc)
+    return {"ok": True}
+
+
+@app.post("/act")
+async def route_act(request: Request):
+    """Deliver finished hands, then turn the JSON into an Observation, call
+    choose_action(), and send the answer back."""
+    body, refused = await _read_request(request, "/act")
+    if refused:
+        return refused
+    hand_end_errors = _deliver_results(body.get("hand_results"))
+    try:
+        obs = Observation.from_dict(body["observation"])
+        action = choose_action(obs, MEMORY)
+    except Exception as exc:
+        return _crash(exc, hand_end_errors)
+    # Send the action's name; anything strange is passed on for the judge to reject.
+    if isinstance(action, Action):
+        answer = action.name
+    elif action is None or isinstance(action, (str, int, float, bool)):
+        answer = action
+    else:
+        answer = repr(action)
+    return {"action": answer, "hand_end_errors": hand_end_errors}
+
+
+@app.post("/hand-end")
+async def route_hand_end(request: Request):
+    """Call on_hand_end() for the last finished hands of a half."""
+    body, refused = await _read_request(request, "/hand-end")
+    if refused:
+        return refused
+    return {"ok": True, "hand_end_errors": _deliver_results(body.get("results"))}
+
+
+if __name__ == "__main__":
+    # The tournament sets PORT as an environment variable, so each bot is compliant to our evaluation platform
+    # Locally it defaults to 5008 for your own testing convenience
+    port = int(os.environ.get("PORT", "5008"))
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info", access_log=False)

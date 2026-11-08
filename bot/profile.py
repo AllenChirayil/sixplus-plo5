@@ -3,7 +3,7 @@ import math
 
 import numpy as np
 
-from evaluator import TWO_PAIR, omaha_score
+from .fast_eval import TWO_PAIR, omaha_score
 from .brain import _name, street_of
 from .preflop import percentile
 

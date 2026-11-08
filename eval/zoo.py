@@ -3,8 +3,8 @@ import types
 
 import numpy as np
 
-from evaluator import score_batch
-from game import Action
+from bot.fast_eval import score_batch
+from eval.sim_game import Action
 
 _rng = np.random.default_rng()
 

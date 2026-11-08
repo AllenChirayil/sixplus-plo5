@@ -1,22 +1,27 @@
 # Progress
 
-Built from PLAN.md in a new repo, without the official starter repo.
+## Layout
+- Root: official starter files (`game.py`, `evaluator.py`, `judge_engine.py`, `test_agent.py`,
+  `docker/`, `tools/`, `baseline-bots/`). `agent.py` is the official server; its
+  `YOUR CODE HERE` section calls `bot/core.py`.
+- `bot/`: strategy, fast evaluator, profiling.
+- `eval/`: in-process simulator (`sim_game.py`), opponent zoo, sweeps, frozen Step 2 bot.
+  Not used at match time.
 
 ## Done
-- Step 1: evaluator, engine, in-process duplicate runner with CI, bank and error reporting.
-- Step 2: range-aware base bot with nut awareness, mixed sizing and a time guard.
-- Step 3: opponent zoo (`eval/zoo.py`), frozen copy in `eval/frozen_step2/`.
-- Step 4: online profiling and exploitation (`bot/profile.py`). 4 seeds vs the zoo:
-  26 wins, 10 chops, 0 losses (+1.79 bb/deal) vs 22/10/0 (+1.37) for the frozen base.
+- Steps 1-3: engine, base bot, opponent zoo.
+- Step 4: profiling and exploitation. 4 seeds vs the zoo: 26 wins, 10 chops, 0 losses
+  (+1.79 bb/deal) vs 22/10/0 (+1.37) for the frozen base.
 - Step 5: current vs frozen over 8 seeds: 1 win, 7 chops, 0 losses, 0 errors.
-- Step 7 (partial): fuzz and JSON-safe memory tests in `tests/test_agent.py`.
+- Official checks: `pytest test_agent.py` (12 passed), `tools/smoke_test.py` passed against a
+  local server, 0 mismatches vs the official evaluator over 40,000 matchups.
+- Official judge vs the team's Stallion bot: 7 seeds, all chops, sixplus ahead in all 7.
+- Official judge vs `baseline_value_bettor`: win, +6.80 bb/deal.
 
 ## Not done
-- Step 6: sweep ran, but its results are not applied. Candidates: `post_shift=1`,
+- Step 6: sweep ran, but results are not applied. Candidates: `post_shift=1`,
   `call_margin=0.09`, `semi_bet=0.25`. Need testing together.
-- Step 7: final timing and release checks.
-- Never run against the official judge. `game.py` is written from PLAN.md, and raise sizing
-  and the `agent.py` function signatures are assumptions.
-- Port to the official `agent.py`, push, submit.
+- `tools/check_build.sh`: not run, Docker is not installed on this machine.
+- Decisions take about 0.4 ms (median), so there is room for more rollouts.
 
 `eval/last_gauntlet.txt` is from the base bot, before Step 4.

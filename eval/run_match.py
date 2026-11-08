@@ -12,7 +12,7 @@ import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
-from game import BB, Action, make_deals, play_hand  # noqa: E402
+from eval.sim_game import BB, Action, make_deals, play_hand  # noqa: E402
 
 BANK, MAX_REQ, MAX_ERR = 8.0, 1.0, 5
 

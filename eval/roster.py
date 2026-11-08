@@ -6,7 +6,7 @@ import types
 def make_bot(name):
     if name == "agent" or name.startswith("agent|"):
         import ast
-        import agent
+        from bot import core as agent
         kv = name.split("|", 1)[1].split(";") if "|" in name else []
         return agent.Agent({k: ast.literal_eval(v) for k, v in (x.split("=") for x in kv)})
     if name == "random":

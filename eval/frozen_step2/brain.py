@@ -3,7 +3,7 @@ import math
 
 import numpy as np
 
-from evaluator import FLUSH, PAIR, STRAIGHT, TWO_PAIR, score_batch
+from .fast_eval import FLUSH, PAIR, STRAIGHT, TWO_PAIR, score_batch
 from .preflop import percentile
 
 _rng = np.random.default_rng()

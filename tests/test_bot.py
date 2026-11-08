@@ -5,10 +5,10 @@ import random
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import agent  # noqa: E402
+from bot import core as agent  # noqa: E402
 from bot.brain import decide  # noqa: E402
 from bot.params import BASE  # noqa: E402
-from game import Action, HistoryEntry, Observation, make_deals, play_hand  # noqa: E402
+from eval.sim_game import Action, HistoryEntry, Observation, make_deals, play_hand  # noqa: E402
 
 
 def fuzz(n=4000):

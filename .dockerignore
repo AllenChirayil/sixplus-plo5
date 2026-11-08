@@ -1,0 +1,12 @@
+# Only what the bot needs at match time goes into the image.
+.git
+.gitignore
+.dockerignore
+.DS_Store
+.venv
+.pytest_cache
+**/__pycache__
+**/*.pyc
+*.md
+eval
+tests
