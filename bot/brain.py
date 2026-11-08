@@ -157,7 +157,19 @@ def sample(probs, P):
     return "CALL"
 
 
+def last_opp_action(obs):
+    for e in reversed(list(obs.action_history)):
+        if not e.is_me:
+            return _name(e.action)
+    return ""
+
+
 def to_action(obs, choice, P):
+    if choice == "BLUFF":
+        p = P["bluff_pot_river"] if len(obs.board) == 5 else P["bluff_pot_fltn"]
+        sz = "RAISE_POT" if (p >= 0.5 if P.get("det") else _rng.random() < p) else "RAISE_HALF"
+        other = "RAISE_HALF" if sz == "RAISE_POT" else "RAISE_POT"
+        return pick(obs, [sz, other, "CHECK_CALL"])
     if choice == "RAISE":
         sz = "RAISE_POT" if (P["p_pot"] >= 0.5 if P.get("det") else _rng.random() < P["p_pot"]) else "RAISE_HALF"
         other = "RAISE_HALF" if sz == "RAISE_POT" else "RAISE_POT"
@@ -217,22 +229,33 @@ def _postflop(obs, info, eq, po, post, here, checked, P):
         eq -= P["disc"] * agg
     eq *= real
     strong_draw = n_board < 5 and (info["fd"] == 0 or info["outs"] >= 8)
+    weak_made = n_board < 5 and info["cat"] <= TWO_PAIR and not strong_draw
     if obs.to_call == 0:
-        thr = P["bet_eq"] - (0.03 if obs.is_button else 0.0)
-        r = sig(eq - thr, 0.04)
+        thr = P["bet_eq"] - (0.03 if obs.is_button else 0.0) + (P["tp_bet"] if weak_made else 0.0)
+        val = sig(eq - thr, 0.04)
+        r = val
         if strong_draw:
             r = max(r, P["semi_bet"])
         if info["blocker"]:
             r = max(r, P["bluff_bet"])
         if checked and obs.is_button:
             r = max(r, P["stab"])
-        return {"RAISE": r, "CALL": 1 - r}
-    thr = max(P["raise_eq"], po + P["raise_over"])
-    r = sig(eq - thr, 0.04)
+        if n_board == 5 and eq < P["river_bluff_eq"]:
+            r = max(r, P["river_stab"])
+        return {"RAISE": val, "BLUFF": r - val, "CALL": 1 - r}
+    thr = max(P["raise_eq"], po + P["raise_over"]) + (P["tp_raise"] if weak_made else 0.0)
+    val = sig(eq - thr, 0.04)
+    r = val
     if strong_draw:
         r = max(r, P["semi_raise"])
     if info["blocker"]:
         r = max(r, P["bluff_raise"])
     margin = P["call_margin"] + P["call_margin_agg"] * max(0, here - 1)
+    if weak_made:
+        margin += P["tp_call"]
+    if n_board == 5 and last_opp_action(obs) == "RAISE_POT":
+        margin += P["rp_margin"]
+        if info["cat"] <= STRAIGHT:
+            margin += P["rp_weak"]
     c = sig(eq - po - margin, 0.02)
-    return {"RAISE": r, "CALL": (1 - r) * c, "FOLD": (1 - r) * (1 - c)}
+    return {"RAISE": val, "BLUFF": r - val, "CALL": (1 - r) * c, "FOLD": (1 - r) * (1 - c)}

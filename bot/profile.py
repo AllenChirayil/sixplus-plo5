@@ -165,7 +165,7 @@ def targets(p, base):
         elif s["fold"] <= 0.25:
             cls.append("caller")
             T.update(bet_eq=T["bet_eq"] - 0.05, p_pot=0.85, bluff_bet=0.0, bluff_raise=0.0,
-                     semi_raise=0.0, stab=0.05)
+                     semi_raise=0.0, stab=0.05, river_stab=0.0)
     if s["acts"] >= 80:
         if s["af"] >= 0.40:
             cls.append("aggressor")

@@ -15,3 +15,11 @@ BASE.update(
     use_profile=True, ramp_start=60, ramp_end=300, min_face=30,
     timeout_streak=20, revert_z=2.0, revert_min=100,
 )
+
+# Leak fixes found from hand logs (see PROGRESS.md).
+BASE.update(
+    rp_margin=0.12, rp_weak=0.08,                 # calling pot-size river bets
+    tp_call=0.04, tp_raise=0.05, tp_bet=0.03,     # flop/turn with two pair or worse
+    bluff_pot_fltn=0.15, bluff_pot_river=0.85,    # bluff sizing by street
+    river_stab=0.25, river_bluff_eq=0.45,         # river bluffs with no showdown value
+)

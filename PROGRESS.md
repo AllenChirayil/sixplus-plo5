@@ -25,3 +25,17 @@
 - Decisions take about 0.4 ms (median), so there is room for more rollouts.
 
 `eval/last_gauntlet.txt` is from the base bot, before Step 4.
+
+## Leak fixes from hand logs (kept)
+Found from 16,000 logged hands vs Stallion, tested on 16 different seeds (official judge):
+
+| Variant | bb/deal vs Stallion | W / C / L |
+|---|---|---|
+| All off | +0.184 | 0 / 16 / 0 |
+| Fix 1: tighter calls vs pot-size river bets | +0.384 | 3 / 13 / 0 |
+| Fix 2: less money in with two pair or worse | +0.461 | 3 / 13 / 0 |
+| Fix 3: bluff sizing by street, more river bluffs | +0.380 | 2 / 14 / 0 |
+| All on | +0.545 | 4 / 12 / 0 |
+
+All on vs all off: +0.362 bb/deal (se 0.131). Zoo (32 matches): +2.33 vs +2.16, 24 wins vs 23,
+0 losses. Docker check was run before these Python-only changes.
