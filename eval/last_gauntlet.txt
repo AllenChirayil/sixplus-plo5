@@ -1,0 +1,19 @@
+RESULT agent          vs mc_naive       seed=11   WIN    bb/deal= +1.304 CI[+0.521,+2.087] bank=4.27s/2.04s err=0/0
+RESULT agent          vs mc_naive       seed=12   WIN    bb/deal= +1.312 CI[+0.518,+2.107] bank=4.30s/2.12s err=0/0
+RESULT agent          vs mc_tight       seed=11   CHOP   bb/deal= +0.708 CI[-0.011,+1.427] bank=4.17s/2.18s err=0/0
+RESULT agent          vs mc_tight       seed=12   CHOP   bb/deal= +0.507 CI[-0.150,+1.164] bank=4.20s/2.09s err=0/0
+RESULT agent          vs mc_loose       seed=11   WIN    bb/deal= +2.753 CI[+1.798,+3.708] bank=4.31s/2.07s err=0/0
+RESULT agent          vs mc_loose       seed=12   WIN    bb/deal= +2.851 CI[+1.909,+3.793] bank=4.34s/2.09s err=0/0
+RESULT agent          vs mc_track       seed=11   WIN    bb/deal= +2.260 CI[+1.363,+3.158] bank=4.33s/2.12s err=0/0
+RESULT agent          vs mc_track       seed=12   WIN    bb/deal= +2.467 CI[+1.590,+3.345] bank=4.33s/2.13s err=0/0
+RESULT agent          vs mc_heavy       seed=11   WIN    bb/deal= +1.556 CI[+1.266,+1.845] bank=1.42s/8.01s err=0/0
+RESULT agent          vs mc_heavy       seed=12   WIN    bb/deal= +1.292 CI[+1.029,+1.555] bank=1.42s/8.00s err=0/0
+RESULT agent          vs nn_det         seed=11   CHOP   bb/deal= +0.106 CI[-0.608,+0.821] bank=3.44s/3.74s err=0/0
+RESULT agent          vs nn_det         seed=12   CHOP   bb/deal= -0.278 CI[-0.958,+0.402] bank=3.37s/3.69s err=0/0
+RESULT agent          vs nn_aggro       seed=11   WIN    bb/deal= +1.488 CI[+0.391,+2.584] bank=3.87s/3.26s err=0/0
+RESULT agent          vs nn_aggro       seed=12   CHOP   bb/deal= +1.036 CI[-0.015,+2.088] bank=3.91s/3.23s err=0/0
+RESULT agent          vs nn_passive     seed=11   CHOP   bb/deal= -0.048 CI[-0.642,+0.546] bank=4.01s/4.30s err=0/0
+RESULT agent          vs nn_passive     seed=12   CHOP   bb/deal= +0.109 CI[-0.454,+0.672] bank=4.03s/4.37s err=0/0
+RESULT agent          vs frozen         seed=11   CHOP   bb/deal= -0.602 CI[-1.368,+0.164] bank=2.56s/2.58s err=0/0
+RESULT agent          vs frozen         seed=12   CHOP   bb/deal= -0.537 CI[-1.260,+0.186] bank=2.51s/2.54s err=0/0
+TOTAL {'WIN': 9, 'CHOP': 9, 'LOSS': 0} mean bb/deal 1.016
