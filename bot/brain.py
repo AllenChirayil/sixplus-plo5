@@ -88,16 +88,20 @@ def range_equity(hero, board, width, level, N):
     used = set(hero) | set(board)
     deck = np.array([c for c in range(36) if c not in used])
     k = 5 - len(board)
-    M = int(min(max(N * 2, N / max(width, 0.05)), 420))
+    M = int(min(max(N * 2, N / max(width, 0.05)), 650))
     perm = _rng.random((M, len(deck))).argsort(1)[:, :5 + k]
     opp = deck[perm[:, :5]]
-    keep = percentile(opp) >= 1.0 - width
+    pre_keep = percentile(opp) >= 1.0 - width
+    keep = pre_keep
     if board and level > 0:
         keep2 = keep & _post_mask(opp, board, level)
-        if keep2.sum() >= 12:
+        if keep2.sum() >= 4:
             keep = keep2
-    if keep.sum() >= 12:
+    if keep.sum() >= 4:
         perm, opp = perm[keep][:N], opp[keep][:N]
+    elif pre_keep.sum() >= 4:
+        # Fallback to preflop range rather than unfiltered random hands
+        perm, opp = perm[pre_keep][:N], opp[pre_keep][:N]
     else:
         perm, opp = perm[:N], opp[:N]
     run = deck[perm[:, 5:]]
@@ -240,7 +244,7 @@ def _postflop(obs, info, eq, po, post, here, checked, P):
             r = max(r, P["bluff_bet"])
         if checked and obs.is_button:
             r = max(r, P["stab"])
-        if n_board == 5 and eq < P["river_bluff_eq"]:
+        if n_board == 5 and eq < P["river_bluff_eq"] and obs.my_stack >= 25:
             r = max(r, P["river_stab"])
         return {"RAISE": val, "BLUFF": r - val, "CALL": 1 - r}
     thr = max(P["raise_eq"], po + P["raise_over"]) + (P["tp_raise"] if weak_made else 0.0)
